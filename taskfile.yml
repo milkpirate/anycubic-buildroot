@@ -1,0 +1,57 @@
+version: "3"
+
+vars:
+  BUILDROOT_DIR: buildroot/
+  DEFCONFIG: anycubic_kobra_rockchip_rv1106g3_defconfig
+  JOBS_COUNT:
+    sh: nproc
+env:
+  BR2_EXTERNAL: "{{ .ROOT_DIR }}"
+  PATH:
+    sh: echo $PATH | tr ':' '\n' | grep -v ' ' | tr '\n' ':' | sed 's|:$||'
+
+tasks:
+  dependencies:
+    desc: Prepare dependencies
+    cmds:
+      - git submodule update --init
+
+  pre-build:
+    desc: Prebuild tasks
+    cmds:
+      - task: defconfig
+      - scripts/apply_fixes.sh
+
+  defconfig:
+    desc: Applies defconfig
+    dir: "{{ .BUILDROOT_DIR }}"
+    cmds:
+      - make {{ .DEFCONFIG }}
+
+  clean:
+    desc: Clean buildroot
+    dir: "{{ .BUILDROOT_DIR }}"
+    cmds:
+      - make clean
+
+  savedefconfig:
+    desc: Create a minimal config from the current one (.config) and writes it back to check it in.
+    dir: "{{ .BUILDROOT_DIR }}"
+    cmds:
+      - make savedefconfig
+      - mv defconfig board/{{ .DEFCONFIG }}
+
+  menuconfig:
+    desc: make menuconfig
+    dir: "{{ .BUILDROOT_DIR }}"
+    cmds:
+      - task: defconfig
+      - make menuconfig
+
+  default:
+    desc: Build
+    dir: "{{ .BUILDROOT_DIR }}"
+    cmds:
+      - task: dependencies
+      - task: pre-build
+      - make -j{{ .JOBS_COUNT }}
