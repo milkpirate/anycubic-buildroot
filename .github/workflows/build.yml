@@ -4,6 +4,11 @@ on:
   push:
     branches:
       - main
+    paths:
+      - 'configs/anycubic_kobra_rockchip_rv1106g3_defconfig'
+      - 'board/**'
+      - 'packages/**'
+      - 'buildroot/**'
   pull_request:
     branches:
       - main

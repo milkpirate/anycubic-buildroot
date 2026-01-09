@@ -4,12 +4,21 @@ on:
   workflow_dispatch:
     inputs:
       git_ref:
-        description: 'Git ref (branch, tag, or commit SHA) to build SDK from'
+        description: 'Git ref to build'
         type: string
         default: main
+  push:
+    branches:
+      - main
+    paths:
+      - 'sdk/**'
+      - 'configs/sdk_defconfig'
+      - 'buildroot'
 
 jobs:
   build:
+    if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
+
     runs-on: ubuntu-latest
     container:
       image: ghcr.io/milkpirate/ci-buildroot:main
@@ -20,12 +29,12 @@ jobs:
 
       - uses: actions/checkout@v6
         with:
-          ref: ${{ inputs.git_ref }}
+          ref: ${{ inputs.git_ref || github.ref_name }}
           submodules: recursive
           fetch-depth: 0   # fetch full history and tags so git describe works
 
       - name: Mark workspace as safe for git (necessary for DinD)
-        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        run: git config --global --add safe.directory "${{github.workspace}}" "$GITHUB_WORKSPACE"
 
       - name: Load SDK defconfig
         run: task make:sdk_defconfig
