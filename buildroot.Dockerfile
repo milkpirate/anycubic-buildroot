@@ -14,6 +14,7 @@ RUN apt-get update \
     build-essential \
     bzip2 \
     cpio \
+    curl \
     extlinux \
     file \
     git \
