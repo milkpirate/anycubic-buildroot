@@ -1,0 +1,48 @@
+name: cross compile build
+
+on:
+  push:
+    branches:
+      - main
+  pull_request:
+    branches:
+      - main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v6
+      with:
+        submodules: recursive
+
+    - name: restore buildroot toolchain and downloads
+      id: buildroot-host-cache-restore
+      uses: actions/cache/restore@v5
+      with:
+        path: |
+          dl/
+          output/host/
+        key: ${{ runner.os }}-buildroot-host
+        # Use a hash of your defconfig as the key to invalidate cache when config changes
+        #key: ${{ runner.os }}-buildroot-${{ hashFiles('configs/your_defconfig') }}
+
+    - name: run pre-build scripts
+      run: scripts/apply_fixes.sh
+
+    - name: install dependencies
+      uses: fmahiant/embedded-CI_docker-buildroot-action@v1
+      with:
+        buildroot-path: 'buildroot'
+        buildroot-external-path: ''
+        make-target: ''
+
+    - name: save buildroot toolchain and downloads
+      id: buildroot-host-cache-save
+      uses: actions/cache/save@v5
+      with:
+        path: |
+          dl/
+          output/host/
+        key: ${{ steps.buildroot-host-cache-restore.outputs.cache-primary-key }}

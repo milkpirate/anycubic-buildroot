@@ -21,9 +21,9 @@ jobs:
       - name: load SDK defconfig
         uses: fmahiant/embedded-CI_docker-buildroot-action@v1
         with:
-          buildroot-path: 'buildroot'
-          buildroot-external-path: ''
-          make-target: 'sdk_defconfig'
+          buildroot_path: 'buildroot'
+          buildroot_external-path: '.'
+          make_target: 'sdk_defconfig'
 
       - name: restore buildroot toolchain and downloads
         id: buildroot-host-cache-restore
@@ -40,9 +40,9 @@ jobs:
       - name: build SDK
         uses: fmahiant/embedded-CI_docker-buildroot-action@v1
         with:
-          buildroot-path: 'buildroot'
-          buildroot-external-path: ''
-          make-target: 'sdk'
+          buildroot_path: 'buildroot'
+          buildroot_external-path: '.'
+          make_target: 'sdk'
 
       - name: save buildroot toolchain and downloads
         if: always()
