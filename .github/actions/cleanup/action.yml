@@ -1,0 +1,257 @@
+name: Clean up docker host.
+description: Cleans up the mounted (host) directory(s) from within the container.
+
+inputs:
+  android:
+    description: "Remove Android runtime"
+    required: false
+    default: "true"
+  dotnet:
+    description: "Remove .NET runtime"
+    required: false
+    default: "true"
+  haskell:
+    description: "Remove Haskell runtime"
+    required: false
+    default: "true"
+
+  # option inspired by:
+  # https://github.com/apache/flink/blob/master/tools/azure-pipelines/free_disk_space.sh
+  large-packages:
+    description: "Remove large packages"
+    required: false
+    default: "true"
+
+  docker-images:
+    description: "Remove Docker images"
+    required: false
+    default: "true"
+
+  # option inspired by:
+  # https://github.com/actions/virtual-environments/issues/2875#issuecomment-1163392159
+  tool-cache:
+    description: "Remove image tool cache"
+    required: false
+    default: "false"
+
+  swap-storage:
+    description: "Remove swap storage"
+    required: false
+    default: "true"
+
+  chroot:
+    description: |
+      Applies removal relative to the given directory (helpful for freeing up from within a custom image).
+      
+      If one mount the docker socket to the guest, docker-images will work as well.
+      
+      large-packages, tool-cache and swap-storage will still apply to the root within the custom image.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - shell: bash
+      run: |
+        set -x
+        
+        # ======
+        # MACROS
+        # ======
+
+        # macro to print a line of equals
+        # (silly but works)
+        printSeparationLine() {
+          str=${1:=}
+          num=${2:-80}
+          counter=1
+          output=""
+          while [ $counter -le $num ]
+          do
+             output="${output}${str}"
+             counter=$((counter+1))
+          done
+          echo "${output}"
+        }
+
+        # macro to compute available space
+        # REF: https://unix.stackexchange.com/a/42049/60849
+        # REF: https://stackoverflow.com/a/450821/408734
+        getAvailableSpace() { echo $(df -a $1 | awk 'NR > 1 {avail+=$4} END {print avail}'); }
+
+        # macro to make Kb human readable (assume the input is Kb)
+        # REF: https://unix.stackexchange.com/a/44087/60849
+        formatByteCount() { echo $(numfmt --to=iec-i --suffix=B --padding=7 $1'000'); }
+
+        # macro to output saved space
+        printSavedSpace() {
+          saved=${1}
+          title=${2:-}
+
+          echo ""
+          printSeparationLine '*' 80
+          if [ ! -z "${title}" ]; then
+            echo "=> ${title}: Saved $(formatByteCount $saved)"
+          else
+            echo "=> Saved $(formatByteCount $saved)"
+          fi
+          printSeparationLine '*' 80
+          echo ""
+        }
+
+        # macro to print output of dh with caption
+        printDH() {
+          caption=${1:-}
+
+          printSeparationLine '=' 80
+          echo "${caption}"
+          echo ""
+          echo "$ dh -h ${{ inputs.chroot }}/"
+          echo ""
+          df -h ${{ inputs.chroot }}/
+          echo "$ dh -a ${{ inputs.chroot }}/"
+          echo ""
+          df -a ${{ inputs.chroot }}/
+          echo "$ dh -a ${{ inputs.chroot }}"
+          echo ""
+          df -a
+          printSeparationLine '=' 80
+        }
+
+
+
+        # ======
+        # SCRIPT
+        # ======
+
+        # sudo necessary?
+        SUDO="bash -c"
+        [[ $EUID -ne 0 ]] && SUDO="sudo"
+
+        # Display initial disk space stats
+
+        AVAILABLE_INITIAL=$(getAvailableSpace)
+        AVAILABLE_ROOT_INITIAL=$(getAvailableSpace '${{ inputs.chroot }}/')
+
+        printDH "BEFORE CLEAN-UP:"
+        echo ""
+
+
+        # Option: Remove Android library
+
+        if [[ ${{ inputs.android }} == 'true' ]]; then
+          BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
+        
+          $SUDO rm -rf '${{ inputs.chroot }}/usr/local/lib/android' || true
+
+          AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
+          SAVED=$((AFTER-BEFORE))
+          printSavedSpace $SAVED "Android library"
+        fi
+
+        # Option: Remove .NET runtime
+
+        if [[ ${{ inputs.dotnet }} == 'true' ]]; then
+          BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
+
+          # https://github.community/t/bigger-github-hosted-runners-disk-space/17267/11
+          $SUDO rm -rf '${{ inputs.chroot }}/usr/share/dotnet' || true
+        
+          AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
+          SAVED=$((AFTER-BEFORE))
+          printSavedSpace $SAVED ".NET runtime"
+        fi
+
+        # Option: Remove Haskell runtime
+
+        if [[ ${{ inputs.haskell }} == 'true' ]]; then
+          BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
+
+          $SUDO rm -rf '${{ inputs.chroot }}/opt/ghc' || true
+          $SUDO rm -rf '${{ inputs.chroot }}/usr/local/.ghcup' || true
+        
+          AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
+          SAVED=$((AFTER-BEFORE))
+          printSavedSpace $SAVED "Haskell runtime"
+        fi
+
+        # Option: Remove large packages
+        # REF: https://github.com/apache/flink/blob/master/tools/azure-pipelines/free_disk_space.sh
+
+        if [[ ${{ inputs.large-packages }} == 'true' ]]; then
+          BEFORE=$(getAvailableSpace)
+        
+          $SUDO apt-get remove -y '^aspnetcore-.*' || echo "::warning::The command [$SUDO apt-get remove -y '^aspnetcore-.*'] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y '^dotnet-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^dotnet-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y '^llvm-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^llvm-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y 'php.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y 'php.*' --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y '^mongodb-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^mongodb-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y '^mysql-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^mysql-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y google-cloud-sdk --fix-missing || echo "::debug::The command [$SUDO apt-get remove -y google-cloud-sdk --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get remove -y google-cloud-cli --fix-missing || echo "::debug::The command [$SUDO apt-get remove -y google-cloud-cli --fix-missing] failed to complete successfully. Proceeding..."
+          $SUDO apt-get autoremove -y || echo "::warning::The command [$SUDO apt-get autoremove -y] failed to complete successfully. Proceeding..."
+          $SUDO apt-get clean || echo "::warning::The command [$SUDO apt-get clean] failed to complete successfully. Proceeding..."
+
+          AFTER=$(getAvailableSpace)
+          SAVED=$((AFTER-BEFORE))
+          printSavedSpace $SAVED "Large misc. packages"
+        fi
+
+        # Option: Remove Docker images
+
+        if [[ ${{ inputs.docker-images }} == 'true' ]]; then
+          BEFORE=$(getAvailableSpace)
+
+          $SUDO docker image prune --all --force || true
+
+          AFTER=$(getAvailableSpace)
+          SAVED=$((AFTER-BEFORE))
+          printSavedSpace $SAVED "Docker images"
+        fi
+
+        # Option: Remove tool cache
+        # REF: https://github.com/actions/virtual-environments/issues/2875#issuecomment-1163392159
+
+        if [[ ${{ inputs.tool-cache }} == 'true' ]]; then
+          BEFORE=$(getAvailableSpace)
+
+          $SUDO rm -rf "$AGENT_TOOLSDIRECTORY" || true
+        
+          AFTER=$(getAvailableSpace)
+          SAVED=$((AFTER-BEFORE))
+          printSavedSpace $SAVED "Tool cache"
+        fi
+
+        # Option: Remove Swap storage
+
+        if [[ ${{ inputs.swap-storage }} == 'true' ]]; then
+          BEFORE=$(getAvailableSpace)
+
+          $SUDO swapoff -a || true
+          $SUDO rm -f '${{ inputs.chroot }}/mnt/swapfile' || true
+          free -h
+        
+          AFTER=$(getAvailableSpace)
+          SAVED=$((AFTER-BEFORE))
+          printSavedSpace $SAVED "Swap storage"
+        fi
+
+
+
+        # Output saved space statistic
+
+        AVAILABLE_END=$(getAvailableSpace '${{ inputs.chroot }}')
+        AVAILABLE_ROOT_END=$(getAvailableSpace '${{ inputs.chroot }}/')
+
+        echo ""
+        printDH "AFTER CLEAN-UP:"
+
+        echo ""
+        echo ""
+
+        echo "${{ inputs.chroot }}/dev/root:"
+        printSavedSpace $((AVAILABLE_ROOT_END - AVAILABLE_ROOT_INITIAL))
+        echo "overall:"
+        printSavedSpace $((AVAILABLE_END - AVAILABLE_INITIAL))

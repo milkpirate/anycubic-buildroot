@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - 'buildroot.Dockerfile'
-      - '.github/workflows/ci-image.yml'
+      - buildroot.Dockerfile
+      - .github/workflows/ci-image.yml
 
 permissions:
   contents: read
