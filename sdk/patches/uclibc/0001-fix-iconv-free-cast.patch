@@ -1,0 +1,16 @@
+Date: 2026-01-08
+Subject: [PATCH] fix iconv_t to pointer conversion error
+This patch fixes a mandatory type-cast for GCC 15 where iconv_t (long)
+was passed directly to free() without a (void *) cast.
+
+--- a/libc/misc/wchar/wchar.c
++++ b/libc/misc/wchar/wchar.c
+@@ -1297,7 +1297,7 @@
+ 
+ int weak_function iconv_close(iconv_t cd)
+ {
+-	free(cd);
++	free((void *)(uintptr_t)cd);
+ 
+ 	return 0;
+ }

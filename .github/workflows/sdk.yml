@@ -1,0 +1,71 @@
+name: build SDK (manual)
+
+on:
+  workflow_dispatch:
+    inputs:
+      git_ref:
+        description: 'Git ref (branch, tag, or commit SHA) to build SDK from'
+        type: string
+        default: main
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v6
+        with:
+          ref: ${{ inputs.git_ref }}
+          submodules: recursive
+
+      - name: load SDK defconfig
+        uses: fmahiant/embedded-CI_docker-buildroot-action@v1
+        with:
+          buildroot-path: 'buildroot'
+          buildroot-external-path: ''
+          make-target: 'sdk_defconfig'
+
+      - name: restore buildroot toolchain and downloads
+        id: buildroot-host-cache-restore
+        uses: actions/cache/restore@v3
+        with:
+          path: |
+            dl/
+            output/host/
+          key: ${{ runner.os }}-buildroot-host-${{ hashFiles('buildroot/.config') }}
+
+      - name: run pre-build scripts
+        run: scripts/apply_fixes.sh
+
+      - name: build SDK
+        uses: fmahiant/embedded-CI_docker-buildroot-action@v1
+        with:
+          buildroot-path: 'buildroot'
+          buildroot-external-path: ''
+          make-target: 'sdk'
+
+      - name: save buildroot toolchain and downloads
+        if: always()
+        id: buildroot-host-cache-save
+        uses: actions/cache/save@v3
+        with:
+          path: |
+            dl/
+            output/host/
+          key: ${{ steps.buildroot-host-cache-restore.outputs.cache-primary-key }}
+
+      - name: find SDK tarball
+        id: find_sdk
+        run: |
+          SDK_FILE=$(find buildroot/output/images -maxdepth 1 -type f -name '*sdk-buildroot.tar.gz' | head -n1)
+          if [ -z "$SDK_FILE" ]; then
+            echo "SDK tarball not found"
+            exit 1
+          fi
+          echo "sdk_file=$SDK_FILE" >> "$GITHUB_OUTPUT"
+
+      - name: upload SDK artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: sdk-${{ inputs.git_ref }}-${{ github.sha }}
+          path: ${{ steps.find_sdk.outputs.sdk_file }}

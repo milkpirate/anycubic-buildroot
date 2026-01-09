@@ -1,0 +1,17 @@
+Date: 2026-01-08
+Subject: [PATCH] fix pointer to iconv_t conversion for GCC 15
+
+This fixes the error: returning 'void *' from a function with return type 
+'iconv_t' {aka 'long int'} makes integer from pointer without a cast.
+
+--- a/libiconv/iconv.c
++++ b/libiconv/iconv.c
+@@ -142,7 +142,7 @@
+ 
+ static iconv_t combine_to_from(size_t t, size_t f)
+ {
+-	return (void *)(f<<16 | t<<1 | 1);
++	return (iconv_t)(uintptr_t)(f<<16 | t<<1 | 1);
+ }
+ 
+ static size_t extract_from(iconv_t cd)

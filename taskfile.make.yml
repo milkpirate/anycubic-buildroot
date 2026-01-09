@@ -1,0 +1,76 @@
+version: "3"
+
+vars:
+  JOBS_COUNT:
+    sh: nproc
+#  JOBS_COUNT: 1
+
+env:
+  BR2_EXTERNAL: "{{ .ROOT_DIR }}"
+  PATH:
+    sh: echo $PATH | tr ':' '\n' | grep -v ' ' | tr '\n' ':' | sed 's|:$||'
+
+tasks:
+  loaddefconfig:
+    desc: Applies defconfig
+    status:
+      - test -f "{{ .BUILDROOT_DIR }}/.config"
+    cmds:
+      - make {{ .DEFCONFIG }}
+
+  defaultconfig:
+    desc: Load default config
+    status:
+      - test -f "{{ .BUILDROOT_DIR }}/.config"
+    cmds:
+      - make defconfig
+
+  build:
+    desc: Build buildroot
+    cmds:
+      - make -j{{ .JOBS_COUNT }}
+
+  sdk:
+    desc: Build the SDK / toolchain for external use.
+    cmds:
+      - make sdk_defconfig
+      - make -j{{ .JOBS_COUNT }} sdk
+
+  wsl.path.fix:
+    desc: |
+      WSL inherits the PATHs from Windows and so potential spaces in the PATHs parts. Buildroot does not like this
+      and this task returns a cleaned version. One can eval the output to get the clean PATH in the current shell.
+    cmds:
+      - echo export PATH=$PATH
+
+# one to one proxies
+
+  savedefconfig:
+    desc: Create a minimal config from the current one.
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}
+
+  uclibc-menuconfig:
+    desc: Applies defconfig
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}
+
+  menuconfig:
+    desc: make menuconfig
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}
+
+  busybox-menuconfig:
+    desc: Configure busybox with menuconfig
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}
+
+  uclibc-patch:
+    desc: Configure busybox with menuconfig
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}
+
+  clean:
+    desc: Clean buildroot
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}

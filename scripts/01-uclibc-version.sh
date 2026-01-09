@@ -1,4 +1,7 @@
 #!/bin/bash
+
+# "Fuzzy" patch to get the desired uclibc version, after that the (real) patches and configs work fine.
+
 UCLIBC_MK="buildroot/package/uclibc/uclibc.mk"
 UCLIBC_HASH="buildroot/package/uclibc/uclibc.hash"
 TARGET_VER="1.0.31"
@@ -18,7 +21,7 @@ if [[ ! -f "$UCLIBC_HASH" ]]; then
   exit 1
 fi
 
-SHA256=$(curl --silent --connect-timeout 5 https://downloads.uclibc-ng.org/releases/1.0.31/uClibc-ng-1.0.31.tar.xz.sha256 | cut -f1 -d' ')
+SHA256=$(curl --silent --connect-timeout 5 "https://downloads.uclibc-ng.org/releases/$TARGET_VER/uClibc-ng-$TARGET_VER.tar.xz.sha256" | cut -f1 -d' ')
 
 if ! grep -q "$SHA256" "$UCLIBC_HASH"; then
   echo "sha256  $SHA256  uClibc-ng-$TARGET_VER.tar.xz" >> "$UCLIBC_HASH"
