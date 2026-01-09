@@ -22,7 +22,7 @@ jobs:
         uses: fmahiant/embedded-CI_docker-buildroot-action@v1
         with:
           buildroot_path: 'buildroot'
-          buildroot_external-path: '.'
+          buildroot_external_path: '.'
           make_target: 'sdk_defconfig'
 
       - name: restore buildroot toolchain and downloads
@@ -41,7 +41,7 @@ jobs:
         uses: fmahiant/embedded-CI_docker-buildroot-action@v1
         with:
           buildroot_path: 'buildroot'
-          buildroot_external-path: '.'
+          buildroot_external_path: '.'
           make_target: 'sdk'
 
       - name: save buildroot toolchain and downloads
