@@ -87,14 +87,3 @@ jobs:
         with:
           name: sdk-${{ steps.verison.outputs.verison }}
           path: ${{ steps.find_sdk.outputs.sdk_file }}
-
-      - name: Upload SDK to Packages
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-        run: |
-          curl -X PUT \
-            -H "Authorization: Bearer $GITHUB_TOKEN" \
-            -H "Content-Type: application/octet-stream" \
-            -L \
-            "https://maven.pkg.github.com/${{ github.repository }}/sdk/${{ steps.version.outputs.version }}/$(basename ${{ steps.find_sdk.outputs.sdk_file }})" \
-            --data-binary @${{ steps.find_sdk.outputs.sdk_file }}

@@ -44,6 +44,11 @@ tasks:
     cmds:
       - make {{ .TASK | splitList ":" | last }}
 
+  distclean:
+    desc: Create a minimal config from the current one.
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}
+
   uclibc-menuconfig:
     desc: Applies defconfig
     cmds:

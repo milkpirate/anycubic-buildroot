@@ -2,32 +2,42 @@ version: "3"
 
 vars:
   DEFCONFIG: anycubic_kobra_rockchip_rv1106g3_defconfig
+  BUILDROOT_DIR: buildroot
 env:
   BR2_EXTERNAL: "{{ .ROOT_DIR }}"
 
 includes:
   make:
     taskfile: taskfile.make.yml
-    dir: buildroot/
+    dir: "{{ .BUILDROOT_DIR }}/"
 
 tasks:
-  dependencies:
-    desc: Prepare dependencies
+  submodules:
+    desc: Get submodules
     status:
       - test -d "{{ .BUILDROOT_DIR }}"
     cmds:
       - git submodule update --init
+
+  fix:
+    desc: Apply fixes
+    preconditions:
+      - test -d "{{ .BUILDROOT_DIR }}"
+    cmds:
       - scripts/apply_fixes.sh
 
   sdk:
     cmds:
-      - task: dependencies
+      - task: submodules
+      - task: fix
       - task: make:sdk_defconfig
       - task: make:sdk
+      - cp -v buildroot/output/images/*sdk-buildroot.tar.gz sdk/
 
   default:
     desc: Build
     cmds:
-      - task: dependencies
+      - task: submodules
+      - task: fix
       - task: make:loaddefconfig
       - task: make:build
