@@ -43,9 +43,6 @@ jobs:
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
           git config --get-all safe.directory
 
-      - name: Load SDK defconfig
-        run: task make:sdk_defconfig
-
       - name: Restore buildroot toolchain and downloads
         id: buildroot-host-cache-restore
         uses: actions/cache/restore@v3
@@ -54,6 +51,9 @@ jobs:
             buildroot/dl/
             buildroot/output/host/
           key: ${{ runner.os }}-buildroot-host-${{ hashFiles('buildroot/.config') }}
+
+      - name: Load SDK defconfig
+        run: task make:sdk_defconfig
 
       - name: Run pre-build scripts
         run: scripts/apply_fixes.sh
@@ -81,19 +81,23 @@ jobs:
           fi
           echo "sdk_file=$SDK_FILE" >> "$GITHUB_OUTPUT"
 
+      - name: Get version
+        id: version
+        run: echo "version=$(git describe --tags --always)" >> $GITHUB_OUTPUT
+
       - name: Upload SDK artifact
         uses: actions/upload-artifact@v4
         with:
-          name: sdk-${{ inputs.git_ref }}-${{ github.sha }}
+          name: sdk-${{ steps.verison.outputs.verison }}
           path: ${{ steps.find_sdk.outputs.sdk_file }}
 
-      - uses: oras-project/setup-oras@v1
-      - name: Push package
+      - name: Upload SDK to Packages
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          touch foo
-          echo ${{ secrets.GITHUB_TOKEN }} | oras login --username ${{ github.actor }} --password-stdin ghcr.io
-          oras push \
-            --artifact-type application/octet-stream \ 
-            "ghcr.io/${{ github.repository }}/slugs/arm-anycubic_kobra_rockchip-linux-uclibcgnueabihf_sdk:\
-            latest,${{ github.ref_name }},${{ github.sha }},${{ github.ref_name }}-$(echo "$GITHUB_SHA" | head -c8)" \
-            ${{ steps.find_sdk.outputs.sdk_file }}
+          curl -X PUT \
+            -H "Authorization: Bearer $GITHUB_TOKEN" \
+            -H "Content-Type: application/octet-stream" \
+            -L \
+            "https://maven.pkg.github.com/${{ github.repository }}/sdk/${{ steps.version.outputs.version }}/$(basename ${{ steps.find_sdk.outputs.sdk_file }})" \
+            --data-binary @${{ steps.find_sdk.outputs.sdk_file }}
