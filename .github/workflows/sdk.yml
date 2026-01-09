@@ -55,9 +55,6 @@ jobs:
       - name: Load SDK defconfig
         run: task make:sdk_defconfig
 
-      - name: Run pre-build scripts
-        run: scripts/apply_fixes.sh
-
       - name: Build SDK (reloads defconfig)
         run: task sdk
 
