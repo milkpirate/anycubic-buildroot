@@ -1,14 +1,14 @@
-name: cross compile build
+name: Cross compile build
 
 on:
   push:
     branches:
       - main
-    paths:
-      - 'configs/anycubic_kobra_rockchip_rv1106g3_defconfig'
-      - 'board/**'
-      - 'packages/**'
-      - 'buildroot/**'
+#    paths:
+#      - 'configs/anycubic_kobra_rockchip_rv1106g3_defconfig'
+#      - 'board/**'
+#      - 'packages/**'
+#      - 'buildroot/**'
   pull_request:
     branches:
       - main
@@ -16,38 +16,83 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/${{ github.repository }}/ci-buildroot:main
+      volumes:
+        - /tmp/output:/output
 
     steps:
+    - name: Pre-build cleanup
+      run: |
+        df -h  # check space
+        rm -rf /tmp/* /var/tmp/* /output/build/* 
+        df -h  # check space
+
+    - name: Install Task
+      uses: go-task/setup-task@v1
+
     - uses: actions/checkout@v6
       with:
+        ref: ${{ inputs.git_ref || github.ref_name }}
         submodules: recursive
+        lfs: true
+        fetch-depth: 0   # fetch full history and tags so git describe works
 
-    - name: restore buildroot toolchain and downloads
+    - name: Mark workspace as safe for git (necessary for DinD)
+      run: |
+        git config --global --add safe.directory "${{github.workspace}}"
+        git config --global --add safe.directory "$GITHUB_WORKSPACE"
+        git config --get-all safe.directory
+
+    - name: Load defconfig for cache key
+      run: task make:loaddefconfig
+
+    - name: Restore buildroot toolchain and downloads
       id: buildroot-host-cache-restore
       uses: actions/cache/restore@v5
       with:
         path: |
-          dl/
-          output/host/
-        key: ${{ runner.os }}-buildroot-host
+          buildroot/dl/
+          buildroot/output/host/
+        key: ${{ runner.os }}-buildroot-host-${{ hashFiles('buildroot/.config') }}
         # Use a hash of your defconfig as the key to invalidate cache when config changes
         #key: ${{ runner.os }}-buildroot-${{ hashFiles('configs/your_defconfig') }}
 
-    - name: run pre-build scripts
-      run: scripts/apply_fixes.sh
+    - name: Build
+      run: task # default = build
 
-    - name: install dependencies
-      uses: fmahiant/embedded-CI_docker-buildroot-action@v1
-      with:
-        buildroot-path: 'buildroot'
-        buildroot-external-path: ''
-        make-target: ''
-
-    - name: save buildroot toolchain and downloads
+    - name: Save buildroot toolchain and downloads
       id: buildroot-host-cache-save
       uses: actions/cache/save@v5
       with:
         path: |
-          dl/
-          output/host/
-        key: ${{ steps.buildroot-host-cache-restore.outputs.cache-primary-key }}
+          buildroot/dl/
+          buildroot/output/host/
+        key: ${{ runner.os }}-buildroot-host-${{ hashFiles('buildroot/.config') }}
+
+#    - name: Find SDK tarball
+#      id: find_sdk
+#      run: |
+#        SDK_FILE=$(find buildroot/output/images -maxdepth 1 -type f -name '*sdk-buildroot.tar.gz' | head -n1)
+#        if [ -z "$SDK_FILE" ]; then
+#          echo "SDK tarball not found"
+#          exit 1
+#        fi
+#        echo "sdk_file=$SDK_FILE" >> "$GITHUB_OUTPUT"
+#
+#    - name: Upload SDK artifact
+#      uses: actions/upload-artifact@v4
+#      with:
+#        name: sdk-${{ inputs.git_ref }}-${{ github.sha }}
+#        path: ${{ steps.find_sdk.outputs.sdk_file }}
+#
+#    - uses: oras-project/setup-oras@v1
+#    - name: Push package
+#      run: |
+#        touch foo
+#        echo ${{ secrets.GITHUB_TOKEN }} | oras login --username ${{ github.actor }} --password-stdin ghcr.io
+#        oras push \
+#          --artifact-type application/octet-stream \
+#          "ghcr.io/${{ github.repository }}/slugs/arm-anycubic_kobra_rockchip-linux-uclibcgnueabihf_sdk:\
+#          latest,${{ github.ref_name }},${{ github.sha }},${{ github.ref_name }}-$(echo "$GITHUB_SHA" | head -c8)" \
+#          ${{ steps.find_sdk.outputs.sdk_file }}

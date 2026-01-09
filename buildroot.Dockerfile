@@ -18,6 +18,7 @@ RUN apt-get update \
     extlinux \
     file \
     git \
+    git-lfs \
     libelf-dev \
     libncurses5-dev \
     libssl-dev \
