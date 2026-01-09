@@ -1,4 +1,4 @@
-name: build SDK (manual)
+name: Build SDK (manual)
 
 on:
   workflow_dispatch:
@@ -11,21 +11,26 @@ on:
 jobs:
   build:
     runs-on: ubuntu-latest
+    container:
+      image: ghcr.io/milkpirate/ci-buildroot:main
 
     steps:
+      - name: Install Task
+        uses: go-task/setup-task@v1
+
       - uses: actions/checkout@v6
         with:
           ref: ${{ inputs.git_ref }}
           submodules: recursive
+          fetch-depth: 0   # fetch full history and tags so git describe works
 
-      - name: load SDK defconfig
-        uses: fmahiant/embedded-CI_docker-buildroot-action@v1
-        with:
-          buildroot_path: 'buildroot'
-          buildroot_external_path: '.'
-          make_target: 'sdk_defconfig'
+      - name: Mark workspace as safe for git (necessary for DinD)
+        run: git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
-      - name: restore buildroot toolchain and downloads
+      - name: Load SDK defconfig
+        run: task make:sdk_defconfig
+
+      - name: Restore buildroot toolchain and downloads
         id: buildroot-host-cache-restore
         uses: actions/cache/restore@v3
         with:
@@ -34,15 +39,11 @@ jobs:
             output/host/
           key: ${{ runner.os }}-buildroot-host-${{ hashFiles('buildroot/.config') }}
 
-      - name: run pre-build scripts
+      - name: Run pre-build scripts
         run: scripts/apply_fixes.sh
 
-      - name: build SDK
-        uses: fmahiant/embedded-CI_docker-buildroot-action@v1
-        with:
-          buildroot_path: 'buildroot'
-          buildroot_external_path: '.'
-          make_target: 'sdk'
+      - name: Build SDK (reloads defconfig)
+        run: task sdk
 
       - name: save buildroot toolchain and downloads
         if: always()

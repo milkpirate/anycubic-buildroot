@@ -30,12 +30,6 @@ tasks:
     cmds:
       - make -j{{ .JOBS_COUNT }}
 
-  sdk:
-    desc: Build the SDK / toolchain for external use.
-    cmds:
-      - make sdk_defconfig
-      - make -j{{ .JOBS_COUNT }} sdk
-
   wsl.path.fix:
     desc: |
       WSL inherits the PATHs from Windows and so potential spaces in the PATHs parts. Buildroot does not like this
@@ -65,6 +59,11 @@ tasks:
     cmds:
       - make {{ .TASK | splitList ":" | last }}
 
+  sdk_defconfig:
+    desc: Configure busybox with menuconfig
+    cmds:
+      - make {{ .TASK | splitList ":" | last }}
+
   uclibc-patch:
     desc: Configure busybox with menuconfig
     cmds:
@@ -74,3 +73,8 @@ tasks:
     desc: Clean buildroot
     cmds:
       - make {{ .TASK | splitList ":" | last }}
+
+  sdk:
+    desc: Build the SDK / toolchain for external use.
+    cmds:
+      - make -j{{ .JOBS_COUNT }} {{ .TASK | splitList ":" | last }}

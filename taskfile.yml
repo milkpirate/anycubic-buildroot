@@ -19,6 +19,12 @@ tasks:
       - git submodule update --init
       - scripts/apply_fixes.sh
 
+  sdk:
+    cmds:
+      - task: dependencies
+      - task: make:sdk_defconfig
+      - task: make:sdk
+
   default:
     desc: Build
     cmds:
