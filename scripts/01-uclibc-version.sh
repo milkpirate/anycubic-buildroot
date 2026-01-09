@@ -23,7 +23,7 @@ if [[ ! -f "$UCLIBC_HASH" ]]; then
 fi
 
 if ! grep -q "$SHA256" "$UCLIBC_HASH"; then
-  echo "sha256  $SHA256" >> "$UCLIBC_HASH"
+  echo "sha256  $SHA256  uClibc-ng-$TARGET_VER.tar.xz" >> "$UCLIBC_HASH"
   echo "  [uClibc] Added SHA256 hash for version $TARGET_VER"
 else
   echo "  [uClibc] SHA256 already present"
