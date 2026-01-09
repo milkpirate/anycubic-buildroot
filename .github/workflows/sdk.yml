@@ -15,13 +15,17 @@ on:
       - 'configs/sdk_defconfig'
       - 'buildroot'
 
+permissions:
+  contents: read
+  packages: write
+
 jobs:
   build:
     if: github.event_name == 'workflow_dispatch' || github.ref == 'refs/heads/main'
 
     runs-on: ubuntu-latest
     container:
-      image: ghcr.io/milkpirate/ci-buildroot:main
+      image: ghcr.io/${{ github.repository }}/ci-buildroot:main
 
     steps:
       - name: Install Task
@@ -47,8 +51,8 @@ jobs:
         uses: actions/cache/restore@v3
         with:
           path: |
-            dl/
-            output/host/
+            buildroot/dl/
+            buildroot/output/host/
           key: ${{ runner.os }}-buildroot-host-${{ hashFiles('buildroot/.config') }}
 
       - name: Run pre-build scripts
@@ -57,17 +61,17 @@ jobs:
       - name: Build SDK (reloads defconfig)
         run: task sdk
 
-      - name: save buildroot toolchain and downloads
+      - name: Save buildroot toolchain and downloads
         if: always()
         id: buildroot-host-cache-save
         uses: actions/cache/save@v3
         with:
           path: |
-            dl/
-            output/host/
+            buildroot/dl/
+            buildroot/output/host/
           key: ${{ steps.buildroot-host-cache-restore.outputs.cache-primary-key }}
 
-      - name: find SDK tarball
+      - name: Find SDK tarball
         id: find_sdk
         run: |
           SDK_FILE=$(find buildroot/output/images -maxdepth 1 -type f -name '*sdk-buildroot.tar.gz' | head -n1)
@@ -77,8 +81,19 @@ jobs:
           fi
           echo "sdk_file=$SDK_FILE" >> "$GITHUB_OUTPUT"
 
-      - name: upload SDK artifact
+      - name: Upload SDK artifact
         uses: actions/upload-artifact@v4
         with:
           name: sdk-${{ inputs.git_ref }}-${{ github.sha }}
           path: ${{ steps.find_sdk.outputs.sdk_file }}
+
+      - uses: oras-project/setup-oras@v1
+      - name: Push package
+        run: |
+          touch foo
+          echo ${{ secrets.GITHUB_TOKEN }} | oras login --username ${{ github.actor }} --password-stdin ghcr.io
+          oras push \
+            --artifact-type application/octet-stream \ 
+            "ghcr.io/${{ github.repository }}/slugs/arm-anycubic_kobra_rockchip-linux-uclibcgnueabihf_sdk:\
+            latest,${{ github.ref_name }},${{ github.sha }},${{ github.ref_name }}-$(echo "$GITHUB_SHA" | head -c8)" \
+            ${{ steps.find_sdk.outputs.sdk_file }}

@@ -3,6 +3,7 @@
 UCLIBC_MK="buildroot/package/uclibc/uclibc.mk"
 UCLIBC_HASH="buildroot/package/uclibc/uclibc.hash"
 TARGET_VER="1.0.31"
+SHA256="2215d7377118434d1697fd575f10d7a6be3f29e460d6b0e1ee9f6f5306288060"
 
 set -e  # Exit on any error
 
@@ -21,13 +22,8 @@ if [[ ! -f "$UCLIBC_HASH" ]]; then
   exit 1
 fi
 
-SHA_URL="https://downloads.uclibc-ng.org/releases/$TARGET_VER/uClibc-ng-$TARGET_VER.tar.xz.sha256"
-echo "  [uClibc] Downloading SHA256 from $SHA_URL"
-FILE_SHA=
-FILE_SHA="$(wget --timeout=5 --tries=3 -q -O- "$SHA_URL")"
-
-if ! grep -q "$FILE_SHA$" "$UCLIBC_HASH"; then
-  echo "sha256  $FILE_SHA" >> "$UCLIBC_HASH"
+if ! grep -q "$SHA256" "$UCLIBC_HASH"; then
+  echo "sha256  $SHA256" >> "$UCLIBC_HASH"
   echo "  [uClibc] Added SHA256 hash for version $TARGET_VER"
 else
   echo "  [uClibc] SHA256 already present"
