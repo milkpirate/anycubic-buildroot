@@ -37,6 +37,7 @@ jobs:
         run: |
           git config --global --add safe.directory "${{github.workspace}}"
           git config --global --add safe.directory "$GITHUB_WORKSPACE"
+          git config --get-all safe.directory
 
       - name: Load SDK defconfig
         run: task make:sdk_defconfig
