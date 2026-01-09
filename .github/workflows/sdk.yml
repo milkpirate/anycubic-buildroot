@@ -34,7 +34,9 @@ jobs:
           fetch-depth: 0   # fetch full history and tags so git describe works
 
       - name: Mark workspace as safe for git (necessary for DinD)
-        run: git config --global --add safe.directory "${{github.workspace}}" "$GITHUB_WORKSPACE"
+        run: |
+          git config --global --add safe.directory "${{github.workspace}}"
+          git config --global --add safe.directory "$GITHUB_WORKSPACE"
 
       - name: Load SDK defconfig
         run: task make:sdk_defconfig
