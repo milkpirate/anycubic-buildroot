@@ -30,6 +30,11 @@ jobs:
         lfs: true
         fetch-depth: 0   # fetch full history and tags so git describe works
 
+    - name: Set up Docker (to do the clean up)
+      run: |
+        apt-get update
+        apt-get install --yes --no-install-recommends docker.io 
+
     - name: Clean up runtimes
       uses: ./.github/actions/cleanup
       with:

@@ -54,8 +54,6 @@ runs:
   steps:
     - shell: bash
       run: |
-        set -x
-        
         # ======
         # MACROS
         # ======
@@ -119,15 +117,21 @@ runs:
           printSeparationLine '=' 80
         }
 
-
+        run() {
+          # sudo necessary?
+          if [[ $EUID -eq 0 ]]; then
+            "$@"
+          elif command -v sudo >/dev/null 2>&1 && sudo -n true 2>/dev/null; then
+            sudo "$@"
+          else
+            echo "Warning: sudo unavailable, running without: $@"
+            "$@"
+          fi
+        }
 
         # ======
         # SCRIPT
         # ======
-
-        # sudo necessary?
-        SUDO="bash -c"
-        [[ $EUID -ne 0 ]] && SUDO="sudo"
 
         # Display initial disk space stats
 
@@ -143,7 +147,7 @@ runs:
         if [[ ${{ inputs.android }} == 'true' ]]; then
           BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
         
-          $SUDO rm -rf '${{ inputs.chroot }}/usr/local/lib/android' || true
+          run rm -rf '${{ inputs.chroot }}/usr/local/lib/android' || true
 
           AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
           SAVED=$((AFTER-BEFORE))
@@ -156,7 +160,7 @@ runs:
           BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
 
           # https://github.community/t/bigger-github-hosted-runners-disk-space/17267/11
-          $SUDO rm -rf '${{ inputs.chroot }}/usr/share/dotnet' || true
+          run rm -rf '${{ inputs.chroot }}/usr/share/dotnet' || true
         
           AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
           SAVED=$((AFTER-BEFORE))
@@ -168,8 +172,8 @@ runs:
         if [[ ${{ inputs.haskell }} == 'true' ]]; then
           BEFORE=$(getAvailableSpace '${{ inputs.chroot }}')
 
-          $SUDO rm -rf '${{ inputs.chroot }}/opt/ghc' || true
-          $SUDO rm -rf '${{ inputs.chroot }}/usr/local/.ghcup' || true
+          run rm -rf '${{ inputs.chroot }}/opt/ghc' || true
+          run rm -rf '${{ inputs.chroot }}/usr/local/.ghcup' || true
         
           AFTER=$(getAvailableSpace '${{ inputs.chroot }}')
           SAVED=$((AFTER-BEFORE))
@@ -182,17 +186,17 @@ runs:
         if [[ ${{ inputs.large-packages }} == 'true' ]]; then
           BEFORE=$(getAvailableSpace)
         
-          $SUDO apt-get remove -y '^aspnetcore-.*' || echo "::warning::The command [$SUDO apt-get remove -y '^aspnetcore-.*'] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y '^dotnet-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^dotnet-.*' --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y '^llvm-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^llvm-.*' --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y 'php.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y 'php.*' --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y '^mongodb-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^mongodb-.*' --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y '^mysql-.*' --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y '^mysql-.*' --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri --fix-missing || echo "::warning::The command [$SUDO apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y google-cloud-sdk --fix-missing || echo "::debug::The command [$SUDO apt-get remove -y google-cloud-sdk --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get remove -y google-cloud-cli --fix-missing || echo "::debug::The command [$SUDO apt-get remove -y google-cloud-cli --fix-missing] failed to complete successfully. Proceeding..."
-          $SUDO apt-get autoremove -y || echo "::warning::The command [$SUDO apt-get autoremove -y] failed to complete successfully. Proceeding..."
-          $SUDO apt-get clean || echo "::warning::The command [$SUDO apt-get clean] failed to complete successfully. Proceeding..."
+          run apt-get remove -y '^aspnetcore-.*' || echo "::warning::The command [run apt-get remove -y '^aspnetcore-.*'] failed to complete successfully. Proceeding..."
+          run apt-get remove -y '^dotnet-.*' --fix-missing || echo "::warning::The command [run apt-get remove -y '^dotnet-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get remove -y '^llvm-.*' --fix-missing || echo "::warning::The command [run apt-get remove -y '^llvm-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get remove -y 'php.*' --fix-missing || echo "::warning::The command [run apt-get remove -y 'php.*' --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get remove -y '^mongodb-.*' --fix-missing || echo "::warning::The command [run apt-get remove -y '^mongodb-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get remove -y '^mysql-.*' --fix-missing || echo "::warning::The command [run apt-get remove -y '^mysql-.*' --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri --fix-missing || echo "::warning::The command [run apt-get remove -y azure-cli google-chrome-stable firefox powershell mono-devel libgl1-mesa-dri --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get remove -y google-cloud-sdk --fix-missing || echo "::debug::The command [run apt-get remove -y google-cloud-sdk --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get remove -y google-cloud-cli --fix-missing || echo "::debug::The command [run apt-get remove -y google-cloud-cli --fix-missing] failed to complete successfully. Proceeding..."
+          run apt-get autoremove -y || echo "::warning::The command [run apt-get autoremove -y] failed to complete successfully. Proceeding..."
+          run apt-get clean || echo "::warning::The command [run apt-get clean] failed to complete successfully. Proceeding..."
 
           AFTER=$(getAvailableSpace)
           SAVED=$((AFTER-BEFORE))
@@ -204,7 +208,7 @@ runs:
         if [[ ${{ inputs.docker-images }} == 'true' ]]; then
           BEFORE=$(getAvailableSpace)
 
-          $SUDO docker image prune --all --force || true
+          run docker image prune --all --force || true
 
           AFTER=$(getAvailableSpace)
           SAVED=$((AFTER-BEFORE))
@@ -217,7 +221,7 @@ runs:
         if [[ ${{ inputs.tool-cache }} == 'true' ]]; then
           BEFORE=$(getAvailableSpace)
 
-          $SUDO rm -rf "$AGENT_TOOLSDIRECTORY" || true
+          run rm -rf "$AGENT_TOOLSDIRECTORY" || true
         
           AFTER=$(getAvailableSpace)
           SAVED=$((AFTER-BEFORE))
@@ -229,8 +233,8 @@ runs:
         if [[ ${{ inputs.swap-storage }} == 'true' ]]; then
           BEFORE=$(getAvailableSpace)
 
-          $SUDO swapoff -a || true
-          $SUDO rm -f '${{ inputs.chroot }}/mnt/swapfile' || true
+          run swapoff -a || true
+          run rm -f '${{ inputs.chroot }}/mnt/swapfile' || true
           free -h
         
           AFTER=$(getAvailableSpace)
